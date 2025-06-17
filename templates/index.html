@@ -18,18 +18,19 @@
     const synth = window.speechSynthesis;
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'zh-TW';
-
+  
     function startListening() {
+      window.speechSynthesis.cancel(); // 🛑 立即停止 AI 講話
       recognition.start();
       document.getElementById('userInput').textContent = '聽你說話中...';
     }
-
+  
     recognition.onresult = function(event) {
       const transcript = event.results[0][0].transcript;
       document.getElementById('userInput').textContent = transcript;
       sendToServer(transcript);
     };
-
+  
     function sendToServer(text) {
       console.log("送出到伺服器：", text);
       fetch("/chat", {
@@ -49,21 +50,19 @@
         speak("發生錯誤，無法取得回應。");
       });
     }
-
-
-
+  
     function speak(text) {
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
       synth.speak(utter);
     }
-
-    // 主動開場語
+  
     window.onload = () => {
       const opening = "我是急救助手，請問現在發生什麼情況？";
       document.getElementById("aiResponse").textContent = opening;
       speak(opening);
     };
   </script>
+  
 </body>
 </html>
