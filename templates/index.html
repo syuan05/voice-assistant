@@ -4,35 +4,94 @@
   <meta charset="UTF-8">
   <title>語音急救助手</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    #response { margin-top: 20px; font-size: 1.2em; }
+    body {
+      font-family: sans-serif;
+      background: #f2f2f2;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    #chatBox {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      height: 400px;
+      overflow-y: auto;
+    }
+
+    .message {
+      display: flex;
+      margin: 10px 0;
+    }
+
+    .ai {
+      justify-content: flex-start;
+    }
+
+    .user {
+      justify-content: flex-end;
+    }
+
+    .bubble {
+      max-width: 70%;
+      padding: 10px 15px;
+      border-radius: 15px;
+      line-height: 1.5;
+    }
+
+    .ai .bubble {
+      background: #e0e0e0;
+      border-bottom-left-radius: 0;
+    }
+
+    .user .bubble {
+      background: #d0ebff;
+      border-bottom-right-radius: 0;
+    }
+
+    #micButton {
+      display: block;
+      margin: 0 auto;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
+
   <h2>🩺 語音急救助手</h2>
-  <button onclick="startListening()">🎤 開始說話</button>
-  <p><strong>你說的：</strong><span id="userInput">...</span></p>
-  <div id="response"><strong>助手回應：</strong><span id="aiResponse"></span></div>
+  <button id="micButton" onclick="startListening()">🎤 開始說話</button>
+  <div id="chatBox"></div>
 
   <script>
     const synth = window.speechSynthesis;
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'zh-TW';
-  
+
     function startListening() {
-      window.speechSynthesis.cancel(); // 🛑 立即停止 AI 講話
+      synth.cancel(); // 停止語音播報
       recognition.start();
-      document.getElementById('userInput').textContent = '聽你說話中...';
+      addMessage("正在聽你說話...", "user", true);
     }
-  
+
     recognition.onresult = function(event) {
       const transcript = event.results[0][0].transcript;
-      document.getElementById('userInput').textContent = transcript;
+      updateLastUserMessage(transcript);
       sendToServer(transcript);
     };
-  
+
     function sendToServer(text) {
-      console.log("送出到伺服器：", text);
       fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,29 +99,50 @@
       })
       .then(res => res.json())
       .then(data => {
-        console.log("AI 回應：", data);
         const reply = data.response;
-        document.getElementById("aiResponse").textContent = reply;
+        addMessage(reply, "ai");
         speak(reply);
       })
       .catch(error => {
         console.error("API 錯誤：", error);
-        speak("發生錯誤，無法取得回應。");
+        const errorMsg = "發生錯誤，無法取得回應。";
+        addMessage(errorMsg, "ai");
+        speak(errorMsg);
       });
     }
-  
+
     function speak(text) {
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
       synth.speak(utter);
     }
-  
+
+    function addMessage(text, sender, isPlaceholder = false) {
+      const chatBox = document.getElementById("chatBox");
+      const messageDiv = document.createElement("div");
+      messageDiv.className = `message ${sender}`;
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+      messageDiv.appendChild(bubble);
+      chatBox.appendChild(messageDiv);
+
+      if (!isPlaceholder) chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function updateLastUserMessage(text) {
+      const chatBox = document.getElementById("chatBox");
+      const messages = chatBox.querySelectorAll(".message.user .bubble");
+      const last = messages[messages.length - 1];
+      if (last) last.textContent = text;
+    }
+
     window.onload = () => {
       const opening = "我是急救助手，請問現在發生什麼情況？";
-      document.getElementById("aiResponse").textContent = opening;
+      addMessage(opening, "ai");
       speak(opening);
     };
   </script>
-  
+
 </body>
 </html>
