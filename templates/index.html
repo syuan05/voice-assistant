@@ -4,48 +4,90 @@
   <meta charset="UTF-8">
   <title>語音急救助手</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; background-color: #f5f5f5; }
-    #chatbox { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; }
-    .msg { margin: 10px 0; padding: 10px; border-radius: 8px; max-width: 80%; }
-    .user { background: #dcf8c6; align-self: flex-end; text-align: right; margin-left: auto; }
-    .ai { background: #e8e8e8; align-self: flex-start; }
-    #chat { display: flex; flex-direction: column; }
-    #micBtn { margin-top: 20px; }
+    body {
+      font-family: sans-serif;
+      background: #f2f2f2;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    #chatBox {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      height: 400px;
+      overflow-y: auto;
+    }
+
+    .message {
+      display: flex;
+      margin: 10px 0;
+    }
+
+    .ai {
+      justify-content: flex-start;
+    }
+
+    .user {
+      justify-content: flex-end;
+    }
+
+    .bubble {
+      max-width: 70%;
+      padding: 10px 15px;
+      border-radius: 15px;
+      line-height: 1.5;
+    }
+
+    .ai .bubble {
+      background: #e0e0e0;
+      border-bottom-left-radius: 0;
+    }
+
+    .user .bubble {
+      background: #d0ebff;
+      border-bottom-right-radius: 0;
+    }
+
+    #micButton {
+      display: block;
+      margin: 0 auto;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
-  <div id="chatbox">
-    <h2>🩺 語音急救助手</h2>
-    <div id="chat"></div>
-    <button id="micBtn" onclick="startListening()">🎤 開始說話</button>
-  </div>
+
+  <h2>🩺 語音急救助手</h2>
+  <button id="micButton" onclick="startListening()">🎤 開始說話</button>
+  <div id="chatBox"></div>
 
   <script>
     const synth = window.speechSynthesis;
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'zh-TW';
 
-    const chat = document.getElementById("chat");
-
-    // 輸出訊息
-    function appendMessage(text, sender) {
-      const msg = document.createElement("div");
-      msg.className = "msg " + sender;
-      msg.textContent = text;
-      chat.appendChild(msg);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    // 講話時停止播放聲音，開始辨識
     function startListening() {
-      synth.cancel(); // ⛔ 停止 AI 講話
+      synth.cancel(); // 停止語音播報
       recognition.start();
-      appendMessage("（正在聽你說話...）", "user");
+      addMessage("正在聽你說話...", "user", true);
     }
 
     recognition.onresult = function(event) {
       const transcript = event.results[0][0].transcript;
-      document.querySelector(".user:last-child").textContent = transcript;
+      updateLastUserMessage(transcript);
       sendToServer(transcript);
     };
 
@@ -58,33 +100,49 @@
       .then(res => res.json())
       .then(data => {
         const reply = data.response;
-        appendMessage(reply, "ai");
+        addMessage(reply, "ai");
         speak(reply);
       })
-      .catch(err => {
-        appendMessage("⚠️ 發生錯誤，無法取得回應。", "ai");
+      .catch(error => {
+        console.error("API 錯誤：", error);
+        const errorMsg = "發生錯誤，無法取得回應。";
+        addMessage(errorMsg, "ai");
+        speak(errorMsg);
       });
     }
 
     function speak(text) {
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
-
-      // ✅ 選擇繁體中文語音（若有）
-      const voice = synth.getVoices().find(v => v.lang === 'zh-TW');
-      if (voice) utter.voice = voice;
-
       synth.speak(utter);
     }
 
-    // 主動歡迎詞（需等語音載入）
+    function addMessage(text, sender, isPlaceholder = false) {
+      const chatBox = document.getElementById("chatBox");
+      const messageDiv = document.createElement("div");
+      messageDiv.className = `message ${sender}`;
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+      messageDiv.appendChild(bubble);
+      chatBox.appendChild(messageDiv);
+
+      if (!isPlaceholder) chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function updateLastUserMessage(text) {
+      const chatBox = document.getElementById("chatBox");
+      const messages = chatBox.querySelectorAll(".message.user .bubble");
+      const last = messages[messages.length - 1];
+      if (last) last.textContent = text;
+    }
+
     window.onload = () => {
-      synth.onvoiceschanged = () => {
-        const welcome = "我是急救助手，請問現在發生什麼情況？";
-        appendMessage(welcome, "ai");
-        speak(welcome);
-      };
+      const opening = "我是急救助手，請問現在發生什麼情況？";
+      addMessage(opening, "ai");
+      speak(opening);
     };
   </script>
+
 </body>
 </html>
