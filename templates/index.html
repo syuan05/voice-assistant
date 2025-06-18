@@ -114,6 +114,7 @@
     function speak(text) {
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
+      utter.rate = 1.2; 
       synth.speak(utter);
     }
 
